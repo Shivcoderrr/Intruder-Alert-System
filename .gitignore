@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+detector/.venv311/
+node_modules/
+dist/
+target/
+.idea/
+.vscode/
+*.log
+detector/.env
+detector/captures/*.jpg
