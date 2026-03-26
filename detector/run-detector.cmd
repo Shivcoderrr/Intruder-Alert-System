@@ -4,6 +4,15 @@ setlocal
 set "PROJECT_ROOT=%~dp0"
 set "VENV_PYTHON=%PROJECT_ROOT%.venv\Scripts\python.exe"
 
+if exist "%VENV_PYTHON%" (
+  call "%VENV_PYTHON%" -c "import sys" >nul 2>nul
+  if errorlevel 1 (
+    echo Detector virtual environment is broken. Rebuilding it...
+    call "%PROJECT_ROOT%setup-detector.cmd"
+    if errorlevel 1 exit /b %errorlevel%
+  )
+)
+
 if not exist "%VENV_PYTHON%" (
   echo Detector environment is not ready yet. Running setup first...
   call "%PROJECT_ROOT%setup-detector.cmd"

@@ -1,20 +1,54 @@
 @echo off
 setlocal
 
-set "PY311=C:\Users\Predator\AppData\Local\Programs\Python\Python311\python.exe"
 set "PROJECT_ROOT=%~dp0"
 set "VENV_PYTHON=%PROJECT_ROOT%.venv\Scripts\python.exe"
 set "PIP_DISABLE_PIP_VERSION_CHECK=1"
+set "PYTHON_EXE="
+set "PYTHON_ARGS="
 
-if not exist "%PY311%" (
-  echo Python 3.11 was not found at "%PY311%".
-  echo Install Python 3.11 and try again.
+if exist "%LocalAppData%\Programs\Python\Python311\python.exe" (
+  set "PYTHON_EXE=%LocalAppData%\Programs\Python\Python311\python.exe"
+)
+
+if not defined PYTHON_EXE (
+  where python >nul 2>nul
+  if not errorlevel 1 (
+    python -c "import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 11) else 1)" >nul 2>nul
+    if not errorlevel 1 (
+      set "PYTHON_EXE=python"
+    )
+  )
+)
+
+if not defined PYTHON_EXE (
+  where py >nul 2>nul
+  if not errorlevel 1 (
+    py -3.11 -c "import sys" >nul 2>nul
+    if not errorlevel 1 (
+      set "PYTHON_EXE=py"
+      set "PYTHON_ARGS=-3.11"
+    )
+  )
+)
+
+if not defined PYTHON_EXE (
+  echo Python 3.11 was not found.
+  echo Install Python 3.11 and make sure either py -3.11 or python is available.
   exit /b 1
+)
+
+if exist "%VENV_PYTHON%" (
+  call "%VENV_PYTHON%" -c "import sys" >nul 2>nul
+  if errorlevel 1 (
+    echo Existing detector virtual environment is broken. Recreating it...
+    rmdir /s /q "%PROJECT_ROOT%.venv"
+  )
 )
 
 if not exist "%VENV_PYTHON%" (
   echo Creating detector virtual environment...
-  call "%PY311%" -m venv "%PROJECT_ROOT%.venv"
+  call "%PYTHON_EXE%" %PYTHON_ARGS% -m venv "%PROJECT_ROOT%.venv"
   if errorlevel 1 exit /b %errorlevel%
 )
 
