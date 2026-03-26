@@ -69,4 +69,5 @@ python detector.py
 
 - The detector uses OpenCV face detection plus LBPH recognition so it is easier to run on Windows for live demos.
 - Alert suppression is built in so the same person does not spam the system every frame.
+- If the backend is offline, the detector still saves local captures and backs off before retrying API delivery.
 - The backend uses in-memory storage to keep the project simple for a showcase.

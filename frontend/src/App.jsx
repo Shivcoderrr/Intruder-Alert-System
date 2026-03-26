@@ -14,6 +14,7 @@ function App() {
   const [alerts, setAlerts] = useState([]);
   const [systemArmed, setSystemArmed] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [backendOnline, setBackendOnline] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -22,15 +23,20 @@ function App() {
       try {
         // Polling is enough for a showcase and simpler than wiring WebSockets on day one.
         const response = await fetch(API_BASE_URL);
+        if (!response.ok) {
+          throw new Error(`Backend returned ${response.status}`);
+        }
         const data = await response.json();
 
         if (mounted) {
           setAlerts(data);
           setLoading(false);
+          setBackendOnline(true);
         }
       } catch (error) {
         if (mounted) {
           setLoading(false);
+          setBackendOnline(false);
         }
       }
     }
@@ -51,10 +57,16 @@ function App() {
 
   // The UI treats the newest alert as the active incident.
   const latestAlert = alerts[0] ?? null;
-  const intruderDetected = Boolean(latestAlert) && systemArmed;
+  const intruderDetected = backendOnline && Boolean(latestAlert) && systemArmed;
+  const systemOffline = !backendOnline;
+  const appStateClass = systemOffline
+    ? "app backend-offline"
+    : intruderDetected
+      ? "app alert-state"
+      : "app";
 
   return (
-    <div className={intruderDetected ? "app alert-state" : "app"}>
+    <div className={appStateClass}>
       <div className="background-grid" />
       <header className="hero">
         <div>
@@ -83,11 +95,19 @@ function App() {
         <section className="status-card">
           <span className="status-dot" />
           <div>
-            <h2>{intruderDetected ? "Intruder Detected" : "System Secure"}</h2>
+            <h2>
+              {systemOffline
+                ? "Backend Offline"
+                : intruderDetected
+                  ? "Intruder Detected"
+                  : "System Secure"}
+            </h2>
             <p>
-              {intruderDetected
-                ? "Unknown face captured and reported to control center."
-                : "No active intrusions in the current monitoring window."}
+              {systemOffline
+                ? "Dashboard cannot reach the alert API on port 8080, so live snapshots and timestamps will not appear."
+                : intruderDetected
+                  ? "Unknown face captured and reported to control center."
+                  : "No active intrusions in the current monitoring window."}
             </p>
           </div>
         </section>
