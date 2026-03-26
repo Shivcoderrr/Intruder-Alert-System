@@ -48,6 +48,12 @@ class IntruderDetector:
         self.process_every_n_frames = max(1, int(os.getenv("PROCESS_EVERY_N_FRAMES", "3")))
         self.frame_resize_scale = float(os.getenv("FRAME_RESIZE_SCALE", "0.4"))
         self.max_frame_width = int(os.getenv("MAX_FRAME_WIDTH", "640"))
+        self.recognition_min_interval_seconds = max(
+            0.0, float(os.getenv("RECOGNITION_MIN_INTERVAL_SECONDS", "0.25"))
+        )
+        self.max_recognition_roi_side = max(
+            96, int(os.getenv("MAX_RECOGNITION_ROI_SIDE", "320"))
+        )
         self.face_detection_upsample = max(
             0, int(os.getenv("FACE_DETECTION_UPSAMPLE", "0"))
         )
@@ -93,6 +99,7 @@ class IntruderDetector:
         self.pending_frame_id = 0
         self.last_processed_frame_id = 0
         self.last_recognition_time = 0.0
+        self.last_recognition_request_time = 0.0
         self.recognition_result_id = 0
         self.last_seen_result_id = 0
         self.unknown_streak = 0
@@ -259,6 +266,19 @@ class IntruderDetector:
                         max(1, int(roi_width * resize_ratio)),
                         max(1, int(roi_height * resize_ratio)),
                     ),
+                )
+                roi_height, roi_width = roi.shape[:2]
+                largest_side = max(roi_height, roi_width)
+
+            if largest_side > self.max_recognition_roi_side:
+                resize_ratio = self.max_recognition_roi_side / largest_side
+                roi = cv2.resize(
+                    roi,
+                    (
+                        max(1, int(roi_width * resize_ratio)),
+                        max(1, int(roi_height * resize_ratio)),
+                    ),
+                    interpolation=cv2.INTER_AREA,
                 )
 
             rgb_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
@@ -461,13 +481,19 @@ class IntruderDetector:
                     continue
 
                 should_process = self.frame_counter % self.process_every_n_frames == 0
+                now = time.time()
                 self.frame_counter += 1
 
-                if should_process:
+                if (
+                    should_process
+                    and now - self.last_recognition_request_time
+                    >= self.recognition_min_interval_seconds
+                ):
                     with self.frame_lock:
                         # Keep only the newest frame so stale frames do not queue up.
                         self.pending_frame = frame.copy()
                         self.pending_frame_id += 1
+                        self.last_recognition_request_time = now
 
                 with self.results_lock:
                     recognized_detections = list(self.last_detections)
